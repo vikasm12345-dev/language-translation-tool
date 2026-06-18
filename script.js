@@ -1,3 +1,13 @@
+// Load voices when page loads
+let voices = [];
+function loadVoices() {
+  voices = window.speechSynthesis.getVoices();
+}
+loadVoices();
+if (window.speechSynthesis.onvoiceschanged !== undefined) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
 async function translateText() {
   const text = document.getElementById("inputText").value;
   const source = document.getElementById("sourceLang").value;
@@ -39,10 +49,45 @@ function copyText() {
 
 function speakText() {
   const text = document.getElementById("outputText").value;
-  if (!text) return alert("Nothing to speak!");
-  
+  if (!text) {
+    alert("Nothing to speak! Please translate something first.");
+    return;
+  }
+
+  // Check if browser supports speech
+  if (!('speechSynthesis' in window)) {
+    alert("Sorry, your browser doesn't support text-to-speech.");
+    return;
+  }
+
+  // Stop any ongoing speech
+  window.speechSynthesis.cancel();
+
   const target = document.getElementById("targetLang").value;
   const speech = new SpeechSynthesisUtterance(text);
-  speech.lang = target;
+  
+  // Try to find a matching voice for the target language
+  const availableVoices = window.speechSynthesis.getVoices();
+  const matchingVoice = availableVoices.find(voice => 
+    voice.lang.toLowerCase().startsWith(target.toLowerCase())
+  );
+  
+  if (matchingVoice) {
+    speech.voice = matchingVoice;
+    speech.lang = matchingVoice.lang;
+  } else {
+    speech.lang = target;
+    console.warn(`No voice found for ${target}. Using default.`);
+  }
+  
+  speech.rate = 0.9;
+  speech.pitch = 1;
+  speech.volume = 1;
+
+  speech.onerror = (e) => {
+    console.error("Speech error:", e);
+    alert("Speech error occurred. Try a different language or browser.");
+  };
+
   window.speechSynthesis.speak(speech);
 }
